@@ -1,0 +1,29 @@
+# Django-related files
+*.pyc
+*.pyo
+*.pyd
+__pycache__
+
+# Local development settings
+local_settings.py
+
+# Database
+*.sqlite3
+
+# Static files directory (if using collectstatic)
+/staticfiles/
+
+# Media files directory (if using user-uploaded media)
+/media/
+
+# Virtual environment (if using virtualenv or venv)
+venv/
+.env/
+
+# IDE or editor specific files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+*.sqlite3

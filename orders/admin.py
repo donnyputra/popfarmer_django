@@ -1,0 +1,84 @@
+from django.contrib import admin
+from django.contrib.humanize.templatetags.humanize import intcomma
+from django.utils.html import format_html
+# from daterangefilter.filters import DateRangeFilter
+from .models import Order, OrderItem, OrderRequestSummary
+
+class OrderItemInline(admin.TabularInline):
+    model = OrderItem
+    extra = 0
+
+@admin.register(Order)
+class OrderAdmin(admin.ModelAdmin):
+    list_display = ('order_code', 'formatted_delivery_date', 'display_order_status', 'store', 'total_item_price', 'total_supplier_price', 'profit_loss')
+    inlines = [OrderItemInline]
+    search_fields = ['order_code', 'store__name', 'delivery_date']
+    list_filter = ['order_status', 'store', ('delivery_date', admin.DateFieldListFilter)]
+
+    def formatted_delivery_date(self, obj):
+        return obj.delivery_date.strftime('%Y-%m-%d')
+
+    formatted_delivery_date.short_description = 'Delivery Date (YYYY-MM-DD)'
+
+    def display_order_status(self, obj):
+        status = obj.get_order_status_display()
+        color_map = {
+            'New': 'primary',
+            'In Progress': 'info',
+            'In Delivery': 'warning',
+            'Received & Waiting for Payment': 'secondary',
+            'Completed': 'success',
+        }
+        badge_color = color_map.get(obj.get_order_status_display(), 'dark')
+        return format_html('<span class="badge badge-{0}">{1}</span>', badge_color, status)
+
+    display_order_status.short_description = 'Order Status'
+
+    def total_item_price(self, obj):
+        total_unit_price = sum(item.product.unit_price * item.requested_qty for item in obj.order_items.all())
+        return 'Rp {}'.format(intcomma(total_unit_price))
+
+    total_item_price.short_description = 'Total Item Price (IDR)'
+
+    def total_supplier_price(self, obj):
+        total_supplier_price = sum(item.product.supplier_price * item.requested_qty for item in obj.order_items.all())
+        return 'Rp {}'.format(intcomma(total_supplier_price))
+
+    total_supplier_price.short_description = 'Total Supplier Price (IDR)'
+
+    def profit_loss(self, obj):
+        total_unit_price = sum(item.product.unit_price * item.requested_qty for item in obj.order_items.all())
+        total_supplier_price = sum(item.product.supplier_price * item.requested_qty for item in obj.order_items.all())
+        profit_loss = total_unit_price - total_supplier_price
+        return 'Rp {}'.format(intcomma(profit_loss))
+
+    profit_loss.short_description = 'Profit/Loss'
+
+
+class OrderRequestSummaryAdmin(admin.ModelAdmin):
+    list_display = ('formatted_delivery_date', 'product_name', 'total_requested_qty')
+    search_fields = ['delivery_date', 'product_name']
+    list_filter = ['delivery_date']
+
+    def formatted_delivery_date(self, obj):
+        return obj.delivery_date.strftime('%Y-%m-%d')
+
+    formatted_delivery_date.short_description = 'Delivery Date (YYYY-MM-DD)'
+
+    def has_add_permission(self, request):
+        # Disable the "Add" button in the admin interface
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        # Disable the "Change" button in the admin interface
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        # Disable the "Delete" button in the admin interface
+        return False
+
+    class Meta:
+        verbose_name = "Order Request Summary"
+        verbose_name_plural = "Order Request Summaries"
+
+admin.site.register(OrderRequestSummary, OrderRequestSummaryAdmin)
