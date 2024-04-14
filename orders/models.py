@@ -34,7 +34,6 @@ class OrderItem(models.Model):
     requested_qty = models.IntegerField(null=True, blank=True)
     fulfilled_qty = models.IntegerField(null=True, blank=True)
     received_qty = models.IntegerField(null=True, blank=True)
-    rejected_qty = models.IntegerField(null=True, blank=True)
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE)
     # Add other fields as needed
 
