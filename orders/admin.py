@@ -2,7 +2,32 @@ from django.contrib import admin
 from django.contrib.humanize.templatetags.humanize import intcomma
 from django.utils.html import format_html
 # from daterangefilter.filters import DateRangeFilter
+from django.utils.translation import gettext_lazy as _
+import sys
 from .models import Order, OrderItem, OrderRequestSummary
+
+def process_order(modeladmin, request, queryset):
+    for order in queryset:
+        if order.order_status != "in_progress":
+            queryset.update(order_status="in_progress")
+
+process_order.short_description = _("Process Order")
+
+
+def deliver_order(modeladmin, request, queryset):
+    for order in queryset:
+        if order.order_status != "in_delivery":
+            queryset.update(order_status="in_delivery")
+
+deliver_order.short_description = _("Deliver Order")
+
+def received_order(modeladmin, request, queryset):
+    for order in queryset:
+        if order.order_status != "received_and_waiting_for_payment":
+            queryset.update(order_status="received_and_waiting_for_payment")
+
+received_order.short_description = _("Mark Order as Received")
+
 
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
@@ -17,12 +42,15 @@ class OrderAdmin(admin.ModelAdmin):
             'store', 
             'total_ordered_price', 
             'total_fulfilled_price',
-            'total_supplier_price', 
+            'total_received_price',
+            # 'total_supplier_price',
             # 'profit_loss'
         )
     inlines = [OrderItemInline]
     search_fields = ['order_code', 'store__name', 'delivery_date']
     list_filter = ['order_status', 'store', ('delivery_date', admin.DateFieldListFilter)]
+
+    actions = [ process_order, deliver_order, received_order ]
 
     def formatted_delivery_date(self, obj):
         return obj.delivery_date.strftime('%Y-%m-%d')
@@ -47,19 +75,25 @@ class OrderAdmin(admin.ModelAdmin):
         total_price = sum(item.product.unit_price * item.requested_qty for item in obj.order_items.all())
         return 'Rp {}'.format(intcomma(total_price))
 
-    total_ordered_price.short_description = 'Total Ordered Price (IDR)'
+    total_ordered_price.short_description = 'Total Ordered Price'
 
     def total_fulfilled_price(self, obj):
         total_price = sum(item.product.unit_price * (item.fulfilled_qty if item.fulfilled_qty is not None else 0) for item in obj.order_items.all())
         return 'Rp {}'.format(intcomma(total_price))
 
-    total_fulfilled_price.short_description = 'Total Fulfilled Price (IDR)'
+    total_fulfilled_price.short_description = 'Total Fulfilled Price'
 
-    def total_supplier_price(self, obj):
-        total_price = sum(item.product.supplier_price * (item.fulfilled_qty if item.fulfilled_qty is not None else 0) for item in obj.order_items.all())
+    def total_received_price(self, obj):
+        total_price = sum(item.product.unit_price * (item.received_qty if item.received_qty is not None else 0) for item in obj.order_items.all())
         return 'Rp {}'.format(intcomma(total_price))
 
-    total_supplier_price.short_description = 'Total Supplier Price (IDR)'
+    total_received_price.short_description = 'Total Received Price'
+
+    # def total_supplier_price(self, obj):
+    #     total_price = sum(item.product.supplier_price * (item.fulfilled_qty if item.fulfilled_qty is not None else 0) for item in obj.order_items.all())
+    #     return 'Rp {}'.format(intcomma(total_price))
+
+    # total_supplier_price.short_description = 'Total Supplier Price'
 
     # def profit_loss(self, obj):
     #     total_unit_price = sum(item.product.unit_price * item.requested_qty for item in obj.order_items.all())
@@ -68,6 +102,7 @@ class OrderAdmin(admin.ModelAdmin):
     #     return 'Rp {}'.format(intcomma(profit_loss))
 
     # profit_loss.short_description = 'Profit/Loss'
+
 
 
 class OrderRequestSummaryAdmin(admin.ModelAdmin):
