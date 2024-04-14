@@ -10,7 +10,16 @@ class OrderItemInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('order_code', 'formatted_delivery_date', 'display_order_status', 'store', 'total_item_price', 'total_supplier_price', 'profit_loss')
+    list_display = (
+            'order_code', 
+            'formatted_delivery_date', 
+            'display_order_status', 
+            'store', 
+            'total_ordered_price', 
+            'total_fulfilled_price',
+            'total_supplier_price', 
+            # 'profit_loss'
+        )
     inlines = [OrderItemInline]
     search_fields = ['order_code', 'store__name', 'delivery_date']
     list_filter = ['order_status', 'store', ('delivery_date', admin.DateFieldListFilter)]
@@ -34,25 +43,31 @@ class OrderAdmin(admin.ModelAdmin):
 
     display_order_status.short_description = 'Order Status'
 
-    def total_item_price(self, obj):
-        total_unit_price = sum(item.product.unit_price * item.requested_qty for item in obj.order_items.all())
-        return 'Rp {}'.format(intcomma(total_unit_price))
+    def total_ordered_price(self, obj):
+        total_price = sum(item.product.unit_price * item.requested_qty for item in obj.order_items.all())
+        return 'Rp {}'.format(intcomma(total_price))
 
-    total_item_price.short_description = 'Total Item Price (IDR)'
+    total_ordered_price.short_description = 'Total Ordered Price (IDR)'
+
+    def total_fulfilled_price(self, obj):
+        total_price = sum(item.product.unit_price * (item.fulfilled_qty if item.fulfilled_qty is not None else 0) for item in obj.order_items.all())
+        return 'Rp {}'.format(intcomma(total_price))
+
+    total_fulfilled_price.short_description = 'Total Fulfilled Price (IDR)'
 
     def total_supplier_price(self, obj):
-        total_supplier_price = sum(item.product.supplier_price * item.requested_qty for item in obj.order_items.all())
-        return 'Rp {}'.format(intcomma(total_supplier_price))
+        total_price = sum(item.product.supplier_price * (item.fulfilled_qty if item.fulfilled_qty is not None else 0) for item in obj.order_items.all())
+        return 'Rp {}'.format(intcomma(total_price))
 
     total_supplier_price.short_description = 'Total Supplier Price (IDR)'
 
-    def profit_loss(self, obj):
-        total_unit_price = sum(item.product.unit_price * item.requested_qty for item in obj.order_items.all())
-        total_supplier_price = sum(item.product.supplier_price * item.requested_qty for item in obj.order_items.all())
-        profit_loss = total_unit_price - total_supplier_price
-        return 'Rp {}'.format(intcomma(profit_loss))
+    # def profit_loss(self, obj):
+    #     total_unit_price = sum(item.product.unit_price * item.requested_qty for item in obj.order_items.all())
+    #     total_supplier_price = sum(item.product.supplier_price * item.requested_qty for item in obj.order_items.all())
+    #     profit_loss = total_unit_price - total_supplier_price
+    #     return 'Rp {}'.format(intcomma(profit_loss))
 
-    profit_loss.short_description = 'Profit/Loss'
+    # profit_loss.short_description = 'Profit/Loss'
 
 
 class OrderRequestSummaryAdmin(admin.ModelAdmin):
